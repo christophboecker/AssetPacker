@@ -138,9 +138,10 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
 <a name="b4"></a>
 ### Platzhalter ersetzen
 
-Bei Dateien besteht die Möglichkeit, Inhalte gegen andere Werte auszutauschen. Z.B. werden Platzhalter
-in der Quelldatei durch aktualisierte Konfigurationsdaten überschrieben. Die Anweisungen beziehen sich
-ausschließlich auf die letzte, zuvor mit `addFile()` angegebene Ressource.
+Insbesondere für Dateien besteht die Möglichkeit, Inhalte gegen andere Werte auszutauschen.
+Z.B. werden Platzhalter in der Quelldatei durch aktualisierte Konfigurationsdaten überschrieben.
+Die Anweisungen beziehen sich ausschließlich auf die letzte, zuvor mit `addFile()` bzw. `addCode()`
+angegebene Ressource.
 
 Die Platzhalter werden ersetzt bevor der Code minifiziert wird. Alle Vorkommen des Platzhalter werden
 ersetzt.
@@ -154,8 +155,8 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
     ->replace( 'let konfig_value_a = 99;', 'let konfig_value_a = 18;');
 ```
 
-Je nach Context kann dasselbe Ergebnis durch Code-Blöcke erzielt werden, die vorhergehende Elemente
-überschreiben.
+Je nach Source-Code und Zielsetzung kann dasselbe Ergebnis durch Code-Blöcke erzielt werden, die
+vorhergehende Elemente überschreiben.
 
 <a name="b5"></a>
 ### Codeblöcke hinzufügen
