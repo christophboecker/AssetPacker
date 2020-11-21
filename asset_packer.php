@@ -146,7 +146,7 @@ abstract class AssetPacker
             'type' => ($fileinfo['http'] ? self::HTTP : ( $fileinfo['min'] ? self::COMPRESSED : self::FILE ) ),
             'source' => $fileinfo,
             'name' => $assetPath,
-            'replace' => [],
+            'replace' => [ 'marker'=>[], 'replacement'=>[] ],
             'content' => '',
         ];
         $this->current = &$this->content[array_key_last($this->content)];
@@ -167,7 +167,7 @@ abstract class AssetPacker
             'type' => self::CODE,
             'source' => null,
             'name' => 'code-block',
-            'replace' => [],
+            'replace' => [ 'marker'=>[], 'replacement'=>[] ],
             'content' => trim($code),
         ];
         $this->current = &$this->content[array_key_last($this->content)];
