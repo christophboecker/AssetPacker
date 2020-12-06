@@ -3,7 +3,7 @@
  *  AssetPacker - Support für REDAXO-Addons
  *
  *  @author      Christoph Böcker <https://github.com/christophboecker/>
- *  @version     1.0
+ *  @version     1.0.1
  *  @copyright   Christoph Böcker
  *  @license     Die AssetPacker-Klassen: MIT-License <https://opensource.org/licenses/MIT>
  *               Die JS-Minifier-Klasse: BSD 3-Clause License <https://github.com/tedivm/JShrink/blob/master/LICENSE>
@@ -369,9 +369,9 @@ class AssetPacker_css extends AssetPacker
 
     public function minify( string $content ) : string
     {
-        $scss_compiler = new ScssPhp\ScssPhp\Compiler();
+        $scss_compiler = new \ScssPhp\ScssPhp\Compiler();
         $scss_compiler->setNumberPrecision(10);
-        $scss_compiler->setFormatter(ScssPhp\ScssPhp\Formatter\Compressed::class);
+        $scss_compiler->setFormatter(\ScssPhp\ScssPhp\Formatter\Compressed::class);
         $styles = '@import \''.\rex_path::addon('be_style','plugins/redaxo/scss/_variables').'\';';
         return $scss_compiler->compile($styles.$content);
 	}
