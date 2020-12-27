@@ -3,7 +3,7 @@
  *  AssetPacker - Support für REDAXO-Addons
  *
  *  @author      Christoph Böcker <https://github.com/christophboecker/>
- *  @version     1.0.1
+ *  @version     1.1
  *  @copyright   Christoph Böcker
  *  @license     Die AssetPacker-Klassen: MIT-License <https://opensource.org/licenses/MIT>
  *               Die JS-Minifier-Klasse: BSD 3-Clause License <https://github.com/tedivm/JShrink/blob/master/LICENSE>
@@ -12,11 +12,12 @@
  *
  *  JShrink: https://github.com/tedivm/JShrink
  *  Adaptierter Code, Copyright usw. im hinteren Teil dieser Datei (suche: class Minifier)
+ *  Bitte beachten.
  *
  *  Die Klasse "AssetPacker" stellt Methoden zum erzeugen komprimierter (.min.) Assets wie CSS- und
  *  JS-Dateien aus mehreren Einzelkomponenten (via URL, lokale Dateien, Codeblöcke) zur Verfügung
  *
- *  Wie man AssetPacker benutzt steht im Handbuch auf Github (link siehe oben @see)
+ *  Wie man AssetPacker benutzt steht im Handbuch auf Github (Link siehe oben @see)
  *
  *  ------------------------------------------------------------------------------------------------
  */
@@ -26,7 +27,8 @@ namespace AssetPacker;
  *  @package AssetPacker
  *  @method AssetPacker     target( string $targetPath )
  *  @method AssetPacker     overwrite( bool $overwrite = true )
- *  @method AssetPacker     addFile( string $assetPath )
+ *  @method AssetPacker     addFile( string $assetPath, bool $minified = false )
+ *  @method AssetPacker     addOptionalFile( string $assetPath, bool $minified = false )
  *  @method AssetPacker     addCode( string $code )
  *  @method AssetPacker     replace( string $marker, string $replacement='' )
  *  @method AssetPacker     create()
@@ -104,7 +106,7 @@ abstract class AssetPacker
      *   Damit kann erzwungen werden, dass eine schon existierende Target-Datei neu angelegt wird.
      *
      *   @var     bool          TRUE|false legt fest, ob eine gecachte .min-Version überschreiben werden soll
-     *   @return  AssetPacker   die Asset-Packer-Instanz oder NULL
+     *   @return  AssetPacker   die Asset-Packer-Instanz
      */
     public function overwrite( bool $overwrite = true ) : AssetPacker
     {
@@ -121,14 +123,15 @@ abstract class AssetPacker
      *   setzt einen Pointer (current) auf das zuletzt hinzugefügte Element
      *
      *   @var     string        Pfad der AssetDatei bzw. URL zum Abruf
-     *   @var     bool          FALSE|true legt fest, ob eine gecachte .min-Version überschreiben werden soll
-     *   @return  AssetPacker   die Asset-Packer-Instanz oder NULL
+     *   @var     bool          FALSE|true legt fest, dass die Datei auch ohne .min im Namen als
+     *                          minifiziert behandelt wird
+     *   @return  AssetPacker   die Asset-Packer-Instanz
      *
      *   @throws  AssetPacker_SourceError
      *                          Abbruch wenn keine oder ein fehlerhafter Dateiname angegeben wurde
      *                          Abbruch wenn der Dateityp nicht der Zieldatei entspricht
      */
-    public function addFile( string $assetPath ) : AssetPacker
+    public function addFile( string $assetPath, bool $minified = false ) : AssetPacker
 	{
         // Pfadname muss formal richtig sein
         $fileinfo = self::fileinfo( $assetPath );
@@ -143,14 +146,34 @@ abstract class AssetPacker
 
         // Den Eintrag in die Liste übernehmen und beenden
         $this->content[] = [
-            'type' => ($fileinfo['http'] ? self::HTTP : ( $fileinfo['min'] ? self::COMPRESSED : self::FILE ) ),
+            'type' => ($fileinfo['http'] ? self::HTTP : ( $fileinfo['min'] || true === $minified? self::COMPRESSED : self::FILE ) ),
             'source' => $fileinfo,
             'name' => $assetPath,
             'replace' => [ 'marker'=>[], 'replacement'=>[] ],
             'content' => '',
+            'optional' => false,
         ];
         $this->current = &$this->content[array_key_last($this->content)];
 		return $this;
+	}
+
+    /**  Fügt der Quellenliste eine optionale Datei hinzu
+     *   Im Unterschied zu addFile wird ihr fehlen keinen Fehlermeldung bzw. Warnung auslösen
+     *
+     *   @var     string        Pfad der AssetDatei bzw. URL zum Abruf
+     *   @var     bool          FALSE|true legt fest, dass die Datei auch ohne .min im Namen als
+     *                          minifiziert behandelt wird
+     *   @return  AssetPacker   die Asset-Packer-Instanz
+     *
+     *   @throws  AssetPacker_SourceError
+     *                          Abbruch wenn keine oder ein fehlerhafter Dateiname angegeben wurde
+     *                          Abbruch wenn der Dateityp nicht der Zieldatei entspricht
+     */
+    public function addOptionalFile( string $assetPath, bool $minified = false ) : AssetPacker
+	{
+        $this->addFile( $assetPath, $minified );
+        $this->current['optional'] = true;
+        return $this;
 	}
 
     /**  Fügt der Quellenliste einen Codeblock hinzu
@@ -159,7 +182,7 @@ abstract class AssetPacker
      *   setzt einen Pointer (current) auf das zuletzt hinzugefügte Element
      *
      *   @var     string        Codeblock
-     *   @return  AssetPacker   die Asset-Packer-Instanz oder NULL
+     *   @return  AssetPacker   die Asset-Packer-Instanz
      */
     public function addCode( string $code ) : AssetPacker
 	{
@@ -182,7 +205,7 @@ abstract class AssetPacker
      *
      *   @var     string        Needle
      *   @var     string        Statt Needle einzusetzender Text
-     *   @return  AssetPacker   die Asset-Packer-Instanz oder NULL
+     *   @return  AssetPacker   die Asset-Packer-Instanz
      */
     public function replace( string $marker, string $replacement='' ) : AssetPacker
     {
@@ -201,7 +224,7 @@ abstract class AssetPacker
      *   Kritische Fehler (Konstruktionsfehler) bzw. Fehler im Backend bei einem Admin-User
      *   zu einem Whoops. Alles andere wird still beendet mit einem Log-Eintrag.
      *
-     *   @return  AssetPacker   die Asset-Packer-Instanz oder NULL
+     *   @return  AssetPacker   die Asset-Packer-Instanz
      *
      *   @throws  AssetPacker_MinifyError
      *   @throws  AssetPacker_SourceError
@@ -213,7 +236,7 @@ abstract class AssetPacker
 
         try {
             $bundle = [];
-            foreach( $this->content as $item ){
+            foreach( $this->content as $k=>$item ){
 
                 $filename = $item['name'];
 
@@ -222,7 +245,11 @@ abstract class AssetPacker
                     $item['content'] = \rex_file::get( $filename );
                     // Content kann nicht abgerufen werden; Meldung und Abbruch
                     if( null === $item['content'] ) {
-                        throw new AssetPacker_SourceError(sprintf(self::ERR_FILE_NOT_FOUND,$filename), 2);
+                        if( true === $item['optional'] ){
+                            $item['content'] = '';
+                        } else {
+                            throw new AssetPacker_SourceError(sprintf(self::ERR_FILE_NOT_FOUND,$filename), 2);
+                        }
                     }
                 }
 
@@ -238,7 +265,7 @@ abstract class AssetPacker
 
                 // Dem Paket hinzufügen
                 if( $item['content'] ) {
-                    $bundle[] = $item['content'];
+                    $bundle[] = '/*****/'.PHP_EOL.$item['content'];
                 }
 
             }
@@ -281,7 +308,7 @@ abstract class AssetPacker
 
         // Übrigen Text minifizieren
         try {
-            $content = $this->minify( $content );
+            $content = $this->minify( substr($content,strlen($rem)) );
         } catch (\Exception $e) {
             throw new AssetPacker_MinifyError(sprintf(self::ERR_MINIFY,$name,$e->getMessage()), 2);
         }
@@ -369,6 +396,7 @@ class AssetPacker_css extends AssetPacker
 
     public function minify( string $content ) : string
     {
+
         $scss_compiler = new \ScssPhp\ScssPhp\Compiler();
         $scss_compiler->setNumberPrecision(10);
         $scss_compiler->setFormatter(\ScssPhp\ScssPhp\Formatter\Compressed::class);
@@ -381,7 +409,7 @@ class AssetPacker_css extends AssetPacker
         // Pathname relativ zu rex_path
         $asset = \rex_url::base( \rex_path::relative( $this->target ) );
 
-        if (!\rex::isDebugMode() && $this->timestamp)
+        if (!\rex::isDebugMode() && \rex::isBackend() && $this->timestamp)
         {
             $asset = \rex_url::backendController(['asset' => $asset, 'buster' => $this->timestamp]);
         }
@@ -416,9 +444,9 @@ class AssetPacker_js extends AssetPacker
 
         if (array_key_exists(\rex_view::JS_IMMUTABLE, $options) && $options[\rex_view::JS_IMMUTABLE])
         {
-		    if (!\rex::isDebugMode() && $this->timestamp)
+		    if (!\rex::isDebugMode() && \rex::backendController() && $this->timestamp)
 		    {
-			    $asset = \rex_url::backendController(['asset' => $asset, 'buster' => $this->timestamp]);
+			    $asset = \rex_url::$controller(['asset' => $asset, 'buster' => $this->timestamp]);
 		    }
         }
 		elseif ( $this->timestamp )
@@ -650,7 +678,7 @@ class Minifier
                 // new lines
                 case "\n":
                     // if the next line is something that can't stand alone preserve the newline
-                    if (strpos('(-+{[@', $this->b) !== false) {
+                    if (strpos('(-+{[@', $this->b?:' ') !== false) {
                         echo $this->a;
                         $this->saveString();
                         break;

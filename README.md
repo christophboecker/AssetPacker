@@ -124,7 +124,7 @@ Alternativ kann die Zieldatei gelöscht werden.
 ### Dateien hinzufügen
 
 Ganze Dateien können entweder aus lokal zugänglichen Quellen oder aus Remote-Quellen abgerufen
-werden. Die Dateienangaben werden zunächst nur in eine interne Liste aufgenommen. Der Dateiname
+werden. Die Dateiangaben werden zunächst nur in eine interne Liste aufgenommen. Der Dateiname
 muss formal korrekt sein und das gleiche Suffix wie die Zieldatei aufweisen. Die Existenz der Datei
 wird hier nicht geprüft. Mit `http://` bzw. `https:://` beginnende Namen bezeichnen Remote-Ressourcen.
 
@@ -133,6 +133,20 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
     ->overwrite()
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') );
+```
+
+<a name="b3"></a>
+### Optionale Dateien hinzufügen
+
+Analog zu `->addFile` können auch optionale Dateien z.B. hinzugefügt werden. Im Unterschied zu
+`->addFile` wird keine Fehlermeldung ausgeworfen, wenn die Datei nicht gefunden wird.
+
+```php
+AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
+    ->overwrite()
+    ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
+    ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
 ```
 
 <a name="b4"></a>
@@ -152,7 +166,8 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace( '%xyz%', 123 )
-    ->replace( 'let konfig_value_a = 99;', 'let konfig_value_a = 18;');
+    ->replace( 'let konfig_value_a = 99;', 'let konfig_value_a = 18;')
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
 ```
 
 Je nach Source-Code und Zielsetzung kann dasselbe Ergebnis durch Code-Blöcke erzielt werden, die
@@ -170,7 +185,8 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace ( '%xyz%', 123 )
-    ->addcode( 'konfig_value_a = 18;');
+    ->addcode( 'konfig_value_a = 18;')
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
 ```
 
 <a name="b6"></a>
@@ -190,6 +206,7 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace ( '%xyz%', 123 )
     ->addcode( 'konfig_value_a = 18;')
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') )
     ->create();
 ```
 
@@ -209,6 +226,7 @@ echo AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.m
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace ( '%xyz%', 123 )
     ->addcode( 'konfig_value_a = 18;')
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') )
     ->create()
     ->getTag();
 ```
@@ -270,8 +288,8 @@ Für CSS-Dateien ist ein Tool in REDAXO enthalten, dass CSS-Dateien komprimiert:
 [scssphp](https://scssphp.github.io/scssphp/) im System-Addon be_style. Darüber kann die
 CSS-Komprimierung durchgeführt werden. Da scssphp ein [LESS/SASS-Compiler](https://sass-lang.com/)
 ist, kann in den CSS-Dateien diese Syntax genutzt werden. Jedem Aufruf wird die Datei mit den
-Einstellungen aus be_style vorangestellt, so dass auch diese Werte z.B. für Farben und
-Abstände zur Verfügung stehen.
+Variablen aus be_style (`be_style/plugins/redaxo/scss/_variables.scss`) vorangestellt, so dass auch
+diese Werte z.B. für Farben und Abstände zur Verfügung stehen.
 
 ```php
 class AssetPacker_css extends AssetPacker
