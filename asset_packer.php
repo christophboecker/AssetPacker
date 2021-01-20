@@ -3,7 +3,7 @@
  *  AssetPacker - Support für REDAXO-Addons
  *
  *  @author      Christoph Böcker <https://github.com/christophboecker/>
- *  @version     1.1
+ *  @version     1.2
  *  @copyright   Christoph Böcker
  *  @license     Die AssetPacker-Klassen: MIT-License <https://opensource.org/licenses/MIT>
  *               Die JS-Minifier-Klasse: BSD 3-Clause License <https://github.com/tedivm/JShrink/blob/master/LICENSE>
@@ -31,6 +31,7 @@ namespace AssetPacker;
  *  @method AssetPacker     addOptionalFile( string $assetPath, bool $minified = false )
  *  @method AssetPacker     addCode( string $code )
  *  @method AssetPacker     replace( string $marker, string $replacement='' )
+ *  @method AssetPacker     regReplace( string pattern, string $replacement='' )
  *  @method AssetPacker     create()
  *  @method string          getTag ( )
  *  @method string          minify ( string $content )
@@ -46,6 +47,8 @@ abstract class AssetPacker
     public $remOn = '/*';
     public $remOff = '*/';
 
+    public $validExtensions = [];
+
     // Fehlermeldungen
     const ERR_NO_TARGET = 'AssetPacker: missing valid target-filename! Found "%s"';
     const ERR_TARGET_EXT_INVALID = 'AssetPacker: target-type "%s" is not supported!';
@@ -53,6 +56,7 @@ abstract class AssetPacker
     const ERR_FILE_TYPE = 'AssetPacker:ressource "%s" not of type "%s"!';
     const ERR_FILE_NOT_FOUND = 'AssetPacker: "%s" not found! Minificaton stopped.';
     const ERR_MINIFY = 'AssetPacker: "%s" not minimized [%s]! Minificaton stopped.';
+    const ERR_REGEX = 'AssetPacker: regex-pattern error in "%s"! Minificaton stopped.';
 
     // Source-Typen
     const CODE = 1;                 // Direkt angegebener Code
@@ -68,15 +72,15 @@ abstract class AssetPacker
     protected $target = false;      // Pfadname der Zieldatei
     protected $current = null;      // Pointer auf das letzte zugefühte Element in $content
 
-	public function __construct( array $fileinfo )
-	{
+    public function __construct( array $fileinfo )
+    {
         if( $fileinfo ) {
             $this->target = implode('',$fileinfo);
             $this->timestamp = @filemtime( $this->target );
             $this->overwrite = false === $this->timestamp;
-            $this->type = $fileinfo['ext'];
+            array_unshift( $this->validExtensions,strtolower($fileinfo['ext']) );
         }
-	}
+    }
 
     /**
      *   Getter um die Instanz entsprechend des Dateityps anzulegen.
@@ -132,16 +136,16 @@ abstract class AssetPacker
      *                          Abbruch wenn der Dateityp nicht der Zieldatei entspricht
      */
     public function addFile( string $assetPath, bool $minified = false ) : AssetPacker
-	{
+    {
         // Pfadname muss formal richtig sein
         $fileinfo = self::fileinfo( $assetPath );
         if( !$fileinfo ) {
             throw new AssetPacker_SourceError(sprintf(self::ERR_NO_FILE,$assetPath),1);
         }
 
-        // Suffix muss dem des aktuellen Typs entsprechen
-        if( strcasecmp($this->type,$fileinfo['ext']) ) {
-            throw new AssetPacker_SourceError(sprintf(self::ERR_FILE_TYPE,$assetPath,$this->type),1);
+        // Suffix muss dem den aktuellen Typen der Klasse entsprechen
+        if( !in_array(strtolower($fileinfo['ext']),$this->validExtensions) ) {
+            throw new AssetPacker_SourceError(sprintf(self::ERR_FILE_TYPE,$assetPath,implode('|',$this->validExtensions)),1);
         }
 
         // Den Eintrag in die Liste übernehmen und beenden
@@ -149,13 +153,14 @@ abstract class AssetPacker
             'type' => ($fileinfo['http'] ? self::HTTP : ( $fileinfo['min'] || true === $minified? self::COMPRESSED : self::FILE ) ),
             'source' => $fileinfo,
             'name' => $assetPath,
-            'replace' => [ 'marker'=>[], 'replacement'=>[] ],
+            'replace' => [],
+            'regreplace' => [],
             'content' => '',
             'optional' => false,
         ];
         $this->current = &$this->content[array_key_last($this->content)];
-		return $this;
-	}
+	return $this;
+    }
 
     /**  Fügt der Quellenliste eine optionale Datei hinzu
      *   Im Unterschied zu addFile wird ihr fehlen keinen Fehlermeldung bzw. Warnung auslösen
@@ -174,7 +179,7 @@ abstract class AssetPacker
         $this->addFile( $assetPath, $minified );
         $this->current['optional'] = true;
         return $this;
-	}
+    }
 
     /**  Fügt der Quellenliste einen Codeblock hinzu
      *   Codeblöcke werden immer neu comprimiert.
@@ -185,17 +190,18 @@ abstract class AssetPacker
      *   @return  AssetPacker   die Asset-Packer-Instanz
      */
     public function addCode( string $code ) : AssetPacker
-	{
+    {
         $this->content[] = [
             'type' => self::CODE,
             'source' => null,
             'name' => 'code-block',
-            'replace' => [ 'marker'=>[], 'replacement'=>[] ],
+            'replace' => [],
+            'regreplace' => [],
             'content' => trim($code),
         ];
         $this->current = &$this->content[array_key_last($this->content)];
         return $this;
-	}
+    }
 
     /**  Fügt dem aktuell letzten Element Ersetzungen hinzu
      *   z.B. um in einer Datei Platzhalter gegen aktuelle Werte zu tauschen
@@ -210,8 +216,30 @@ abstract class AssetPacker
     public function replace( string $marker, string $replacement='' ) : AssetPacker
     {
         if( $marker && null !== $this->current && self::HTTP != $this->current['type'] ) {
-            $this->current['replace']['marker'][] = $marker;
-            $this->current['replace']['replacement'][] = $replacement;
+            $this->current['replace'][$marker] = $replacement;
+        }
+        return $this;
+    }
+
+    /**  Fügt dem aktuell letzten Element Ersetzungen hinzu
+     *   z.B. um in einer Datei Regex-Patterns gegen aktuelle Werte zu tauschen
+     *   Die Werte werden getauscht BEVOR die Datei minifiziert wird.
+     *   Gedacht um Parameter und Vorgabewerte einzutragen, nicht für größerer Textblöcke.
+     *   auch nicht für self::HTTP gedacht
+     *
+     *   @var     string        Regex-Pattern
+     *   @var     string        An der Fundstelle einzusetzender Text
+     *   @var     string        Anzahl Ersetzungen (0=alle)
+     *   @return  AssetPacker   die Asset-Packer-Instanz
+     */
+    public function regReplace( string $pattern, string $replacement='', int $limit=-1 ) : AssetPacker
+    {
+        if( $pattern && null !== $this->current && self::HTTP != $this->current['type'] ) {
+            $this->current['regreplace'][] = [
+                    'pattern' => $pattern,
+                    'replacement' => $replacement,
+                    'limit' => $limit
+                ];
         }
         return $this;
     }
@@ -230,7 +258,7 @@ abstract class AssetPacker
      *   @throws  AssetPacker_SourceError
      */
     public function create() : AssetPacker
-	{
+    {
         // keine Zieldatei angegeben; Abbruch
         if( !$this->overwrite ) return $this;
 
@@ -254,8 +282,16 @@ abstract class AssetPacker
                 }
 
                 // Variablen ersetzen
-                if( $item['replace']['marker'] ) {
-                    $item['content'] = str_replace( $item['replace']['marker'], $item['replace']['replacement'], $item['content'] );
+                if( $item['content'] ){
+                    if( $item['replace'] ) {
+                        $item['content'] = str_replace( array_keys($item['replace']), $item['replace'], $item['content'] );
+                    }
+                    foreach( $item['regreplace'] as $replace ) {
+                        $item['content'] = preg_replace( $replace['pattern'], $replace['replacement'], $item['content'], $replace['limit'] );
+                        if( null === $item['content'] ){
+                            throw new AssetPacker_SourceError(sprintf(self::ERR_REGEX,$filename), 1);
+                        }
+                    }
                 }
 
                 // Außer wenn schon comprimiert: Code comprimieren
@@ -265,7 +301,7 @@ abstract class AssetPacker
 
                 // Dem Paket hinzufügen
                 if( $item['content'] ) {
-                    $bundle[] = '/*****/'.PHP_EOL.$item['content'];
+                    $bundle[] = (count($bundle)?(PHP_EOL.PHP_EOL):'') . $item['content'];
                 }
 
             }
@@ -283,8 +319,8 @@ abstract class AssetPacker
             }
         }
 
-		return $this;
-	}
+	return $this;
+    }
 
     /**  Minifiziert den Code
      *   Ein einleitender Kommentar z.B. mit Versions- und Copyright-Informationen bleibt enthalten
@@ -315,7 +351,7 @@ abstract class AssetPacker
 
         // ggf. einleitenden Kommentar wieder einfügen
         return $rem ? $rem . PHP_EOL . $content : $content;
-	}
+    }
 
     /**  Ermittelt den einleitenden Kommentar im Quellcode
      *   Der Kommentar darf z.B. Versions- und Copyright-Informationen enthalten, die
@@ -394,6 +430,8 @@ class AssetPacker_MinifyError extends \Exception {}
 class AssetPacker_css extends AssetPacker
 {
 
+    public $validExtensions = ['.scss'];
+
     public function minify( string $content ) : string
     {
 
@@ -433,26 +471,26 @@ class AssetPacker_js extends AssetPacker
 {
 
     public function minify( string $content = '' ) : string
-	{
+    {
         return Minifier::minify($content);
-	}
+    }
 
     public function getTag( array $options = [] ) : string
-	{
+    {
         // Pathname relativ zu rex_path
         $asset = \rex_url::base( \rex_path::relative( $this->target ) );
 
         if (array_key_exists(\rex_view::JS_IMMUTABLE, $options) && $options[\rex_view::JS_IMMUTABLE])
         {
-		    if (!\rex::isDebugMode() && \rex::backendController() && $this->timestamp)
-		    {
-			    $asset = \rex_url::$controller(['asset' => $asset, 'buster' => $this->timestamp]);
-		    }
+            if (!\rex::isDebugMode() && \rex::backendController() && $this->timestamp)
+	    {
+		$asset = \rex_url::$controller(['asset' => $asset, 'buster' => $this->timestamp]);
+	    }
         }
-		elseif ( $this->timestamp )
-		{
-			$asset .= '?buster=' . $this->timestamp;
-		}
+	elseif ( $this->timestamp )
+	{
+	    $asset .= '?buster=' . $this->timestamp;
+	}
 
         $attributes = [];
         if (array_key_exists(\rex_view::JS_ASYNC, $options) && $options[\rex_view::JS_ASYNC]) {
