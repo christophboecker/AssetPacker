@@ -19,6 +19,7 @@ komprimierten Datei zusammenzufassen. Anwendungsbeispiele sind
 >   - [Neuanlage der Zieldatei erzwingen](#b2)
 >   - [Dateien hinzufügen](#b3)
 >   - [Platzhalter ersetzen](#b4)
+>   - [Code ersetzen (RegEx)](#b4a)
 >   - [Codeblöcke hinzufügen](#b5)
 >   - [Zieldatei anlegen](#b6)
 >   - [HTML-Tag erzeugen](#b7)
@@ -79,6 +80,7 @@ echo AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.m
     ->create()
     ->getTag();
 ```
+
 <a name="f"></a>
 ## Installation
 
@@ -145,8 +147,8 @@ Analog zu `->addFile` können auch optionale Dateien z.B. hinzugefügt werden. I
 AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
     ->overwrite()
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
-    ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
+    ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
 ```
 
 <a name="b4"></a>
@@ -164,6 +166,7 @@ ersetzt.
 AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
     ->overwrite()
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace( '%xyz%', 123 )
     ->replace( 'let konfig_value_a = 99;', 'let konfig_value_a = 18;')
@@ -172,6 +175,26 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
 
 Je nach Source-Code und Zielsetzung kann dasselbe Ergebnis durch Code-Blöcke erzielt werden, die
 vorhergehende Elemente überschreiben.
+
+<a name="b4a"></a>
+### Code ersetzen (RegEx)
+
+Alternativ zur einfachen und damit schnellen Ersetzung von Textsequenzen können auch komplexere
+Ersetzungen durchgeführt werden. Dahinter steht die PHP-Funktion `preg_replace()`. Optional kann
+neben den Parametern für Pattern und Replacement auch noch das Limit angegeben werden.
+Siehe [PHP-Handbuch](https://www.php.net/manual/de/function.preg-replace.php).
+
+```php
+AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
+    ->overwrite()
+    ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
+    ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
+    ->replace( '%xyz%', 123 )
+    ->replace( 'let konfig_value_a = 99;', 'let konfig_value_a = 18;')
+    ->regReplace( '%//#\s+sourceMappingURL=.*?$%im','//' )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
+```
 
 <a name="b5"></a>
 ### Codeblöcke hinzufügen
@@ -183,8 +206,10 @@ abrufbarer Code, kleine Code-Schnipsel oder programmatisch erzeugter Code eingef
 AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
     ->overwrite()
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace ( '%xyz%', 123 )
+    ->regReplace( '%//#\s+sourceMappingURL=.*?$%im','//' )
     ->addcode( 'konfig_value_a = 18;')
     ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
 ```
@@ -203,8 +228,10 @@ Andernfalls werden die Dateien und Codeblöcke in der angegebenen Reihenfolge ab
 AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
     ->overwrite()
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace ( '%xyz%', 123 )
+    ->regReplace( '%//#\s+sourceMappingURL=.*?$%im','//' )
     ->addcode( 'konfig_value_a = 18;')
     ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') )
     ->create();
@@ -223,8 +250,10 @@ Die Methode ist nur sinnvoll in Frontend-Templates.
 echo AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js') )
     ->overwrite()
     ->addFile( 'https://raw.githubusercontent.com/zenorocha/clipboard.js/master/dist/clipboard.min.js' )
+    ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') );
     ->addFile( rex_path::addon('myaddon','install/prism.min.js') )
     ->replace ( '%xyz%', 123 )
+    ->regReplace( '%//#\s+sourceMappingURL=.*?$%im','//' )
     ->addcode( 'konfig_value_a = 18;')
     ->addOptionalFile( rex_path::addonData('myotheraddon','script.js') )
     ->create()
@@ -291,9 +320,14 @@ ist, kann in den CSS-Dateien diese Syntax genutzt werden. Jedem Aufruf wird die 
 Variablen aus be_style (`be_style/plugins/redaxo/scss/_variables.scss`) vorangestellt, so dass auch
 diese Werte z.B. für Farben und Abstände zur Verfügung stehen.
 
+Zusätzlich dürfen mit `addFile` bzw. `addOptionalFile` auch Dateien vom Typ `.scss` importiert
+werden.
+
 ```php
 class AssetPacker_css extends AssetPacker
 {
+    public $validExtensions = ['.scss'];
+    
     public function minify( string $content = '' ) : string
 	{
         $scss_compiler = new ScssPhp\ScssPhp\Compiler();
