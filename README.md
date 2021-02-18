@@ -140,7 +140,7 @@ AssetPacker\AssetPacker::target( rex_path::addonAssets('myaddon', 'script.min.js
 <a name="b3"></a>
 ### Optionale Dateien hinzufügen
 
-Analog zu `->addFile` können auch optionale Dateien z.B. hinzugefügt werden. Im Unterschied zu
+Analog zu `->addOptionalFile` können auch optionale Dateien z.B. hinzugefügt werden. Im Unterschied zu
 `->addFile` wird keine Fehlermeldung ausgeworfen, wenn die Datei nicht gefunden wird.
 
 ```php
