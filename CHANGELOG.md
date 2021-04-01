@@ -1,6 +1,6 @@
 # Changelog
 
-## **01.04.2021 Version 1.2.0**
+## **01.04.2021 Version 1.3.0**
 
 - Errorhandler umbenannt (ohne AssetPacker_) auf Namespace 
    - \AssetPacker\TargetError
