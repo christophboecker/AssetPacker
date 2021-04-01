@@ -301,10 +301,11 @@ Laufzeitfehler werden je nach Kontext unterschiedlich gehandhabt:
 
 Fehler, die zu einem Whoops führen, werden als eigene Exceptions ausgeworfen.
 
-- `AssetPacker_TargetError`
-- `AssetPacker_SourceError`
-- `AssetPacker_MinifyError`  
-  Minifizierer-Exceptions werden in Exceptions vom Typ `AssetPacker_MinifyError` gekapselt.
+- `AssetPacker\TargetError`
+- `AssetPacker\SourceError`
+- `AssetPacker\MinifyError`  
+
+Minifizierer-Exceptions werden in Exceptions vom Typ `AssetPacker\MinifyError` gekapselt.
 
 
 <a name="d"></a>
